@@ -40,7 +40,7 @@
      </font>
     </property>
     <property name="text">
-     <string>Calculator</string>
+     <string>CalC</string>
     </property>
    </widget>
    <widget class="QWidget" name="layoutWidget">
