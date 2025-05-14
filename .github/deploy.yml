@@ -8,9 +8,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history to get commit info
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory "$(pwd)"
 
       - name: Set up Qt6 and WebAssembly tools
         run: |
@@ -24,8 +31,26 @@ jobs:
           /usr/lib/qt6/bin/qmake -spec wasm
           make
 
+      - name: Get commit info for release
+        id: commit_info
+        run: |
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+          echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "RELEASE_TAG=release-$COMMIT_HASH" >> $GITHUB_ENV
+
+      - name: Create release archive
+        run: |
+          cd build
+          zip -r ../web-build-${{ env.COMMIT_HASH }}.zip .
+
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v3.9.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build
+          publish_dir: ./build
+          force_orphan: true
+          user_name: "github-ci[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "Publish to gh-pages"
