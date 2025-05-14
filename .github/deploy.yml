@@ -4,15 +4,26 @@ on:
   push:
     branches:
       - master
+  workflow_run:
+    workflows: ["Setup GitHub Pages Branch"]
+    types:
+      - completed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -34,24 +45,53 @@ jobs:
           mkdir build && cd build
           qmake ../
           make
+          # Debug output
+          ls -la
 
-      - name: Prepare web files
+      - name: Create web directory
         run: |
           mkdir -p web-build
-          cp build/*.js web-build/
-          cp build/*.wasm web-build/
-          cp build/*.html web-build/
-          # Create a simple index.html if it doesn't exist
-          if [ ! -f web-build/index.html ]; then
-            cp build/*.html web-build/index.html
-          fi
+          # Create a proper index.html
+          cat > web-build/index.html << 'EOL'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>CutyCalc WebAssembly</title>
+            <style>
+              body { margin: 0; }
+              #qt_loadingScreen { width: 100vw; height: 100vh; }
+            </style>
+          </head>
+          <body>
+            <div id="qt_loadingScreen"></div>
+            <script type="text/javascript">
+              var qtLoader = undefined;
+              window.onload = function () { qtLoader = new QtLoader(); }
+            </script>
+          </body>
+          </html>
+          EOL
+
+      - name: Copy WebAssembly files
+        run: |
+          cp build/*.js web-build/ || true
+          cp build/*.wasm web-build/ || true
+          cp build/qtloader.js web-build/ || true
+          cp build/*.worker.js web-build/ || true
+          # Debug output
+          echo "Contents of build directory:"
+          ls -la build/
+          echo "Contents of web-build directory:"
+          ls -la web-build/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3.9.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./web-build
-          force_orphan: true
-          user_name: "github-ci[bot]"
+          publish_dir: web-build
+          publish_branch: gh-pages
+          force_orphan: false
+          user_name: "github-actions[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"
-          commit_message: "Publish to gh-pages"
+          commit_message: "Deploy: ${{ github.sha }}"

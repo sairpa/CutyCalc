@@ -1,0 +1,22 @@
+name: Setup GitHub Pages Branch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-gh-pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create gh-pages branch
+        run: |
+          git checkout --orphan gh-pages
+          git rm -rf .
+          echo "# GitHub Pages Branch" > README.md
+          git add README.md
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git commit -m "Initial gh-pages commit"
+          git push origin gh-pages
