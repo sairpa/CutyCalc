@@ -1,0 +1,30 @@
+name: Deploy QT6 Project
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Qt6
+        run: |
+          sudo apt-get install -y qt6-base-dev
+          sudo apt-get install -y qt6-webengine-dev
+
+      - name: Build project
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+
+      - name: Deploy to Github Pages
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/docs
+          cp -r build/* $GITHUB_WORKSPACE/docs
