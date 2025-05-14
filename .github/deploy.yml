@@ -14,42 +14,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Fetch all history to get commit info
+          fetch-depth: 0
 
-      - name: Configure Git safe directory
-        run: git config --global --add safe.directory "$(pwd)"
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v11
 
-      - name: Set up Qt6 and WebAssembly tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qt6-base-dev qt6-webengine-dev qt6-base-dev-tools qt6-webassembly
+      - name: Setup Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.5.0'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'wasm_32'
+          tools: 'tools_webassembly'
+          cache: true
 
       - name: Build project for WebAssembly
         run: |
-          mkdir build
-          cd build
-          /usr/lib/qt6/bin/qmake -spec wasm
+          mkdir build && cd build
+          qmake ../
           make
 
-      - name: Get commit info for release
-        id: commit_info
+      - name: Prepare web files
         run: |
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
-          echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >> $GITHUB_ENV
-          echo "RELEASE_TAG=release-$COMMIT_HASH" >> $GITHUB_ENV
-
-      - name: Create release archive
-        run: |
-          cd build
-          zip -r ../web-build-${{ env.COMMIT_HASH }}.zip .
+          mkdir -p web-build
+          cp build/*.js web-build/
+          cp build/*.wasm web-build/
+          cp build/*.html web-build/
+          # Create a simple index.html if it doesn't exist
+          if [ ! -f web-build/index.html ]; then
+            cp build/*.html web-build/index.html
+          fi
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3.9.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+          publish_dir: ./web-build
           force_orphan: true
           user_name: "github-ci[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"
