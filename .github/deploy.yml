@@ -3,7 +3,7 @@ name: Deploy QT6 WebAssembly Project
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
