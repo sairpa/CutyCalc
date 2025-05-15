@@ -25,19 +25,32 @@ jobs:
         uses: mymindstorm/setup-emsdk@v11
         with:
           version: '3.1.70'
-          actions-cache-folder: 'emsdk-cache-${{ github.run_id }}'
-          update-tags: true
           no-cache: true
+          actions-cache-folder: 'emsdk-cache-${{ github.sha }}'
+
+      - name: Manual Emscripten Setup (Fallback)
+        if: ${{ failure() }}
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install 3.1.70
+          ./emsdk activate 3.1.70
+          source ./emsdk_env.sh
+          echo "EMSDK=$PWD" >> $GITHUB_ENV
+          echo "EMSCRIPTEN=$PWD/upstream/emscripten" >> $GITHUB_ENV
+          echo "$PWD:$PWD/upstream/emscripten" >> $GITHUB_PATH
+          cd ..
 
       - name: Setup Emscripten environment
         run: |
-          source "$EMSDK/emsdk_env.sh"
-          echo "EMSDK=$EMSDK" >> $GITHUB_ENV
+          if [ -f "$EMSDK/emsdk_env.sh" ]; then
+            source "$EMSDK/emsdk_env.sh"
+          fi
+          em++ --version
+          echo "EMSCRIPTEN_ROOT=$EMSCRIPTEN" >> $GITHUB_ENV
           echo "EM_CONFIG=$EM_CONFIG" >> $GITHUB_ENV
-          echo "EMSDK_NODE=$EMSDK_NODE" >> $GITHUB_ENV
-          echo "EMSDK_PYTHON=$EMSDK_PYTHON" >> $GITHUB_ENV
-          echo "EMSCRIPTEN=$EMSDK/upstream/emscripten" >> $GITHUB_ENV
-          echo "$EMSDK:$EMSDK/upstream/emscripten" >> $GITHUB_PATH
+          echo "EM_CACHE=$GITHUB_WORKSPACE/.emscripten_cache" >> $GITHUB_ENV
+          mkdir -p $GITHUB_WORKSPACE/.emscripten_cache
 
       - name: Verify Emscripten
         run: |
