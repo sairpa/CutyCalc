@@ -25,7 +25,24 @@ jobs:
         uses: mymindstorm/setup-emsdk@v11
         with:
           version: '3.1.70'
-          actions-cache-folder: 'emsdk-cache'
+          actions-cache-folder: 'emsdk-cache-${{ github.run_id }}'
+          update-tags: true
+          no-cache: true
+
+      - name: Setup Emscripten environment
+        run: |
+          source "$EMSDK/emsdk_env.sh"
+          echo "EMSDK=$EMSDK" >> $GITHUB_ENV
+          echo "EM_CONFIG=$EM_CONFIG" >> $GITHUB_ENV
+          echo "EMSDK_NODE=$EMSDK_NODE" >> $GITHUB_ENV
+          echo "EMSDK_PYTHON=$EMSDK_PYTHON" >> $GITHUB_ENV
+          echo "EMSCRIPTEN=$EMSDK/upstream/emscripten" >> $GITHUB_ENV
+          echo "$EMSDK:$EMSDK/upstream/emscripten" >> $GITHUB_PATH
+
+      - name: Verify Emscripten
+        run: |
+          emcc --version
+          em++ --version
 
       - name: Setup Qt
         uses: jurplel/install-qt-action@v3
@@ -35,22 +52,13 @@ jobs:
           target: 'desktop'
           arch: 'wasm_32'
           tools: 'tools_webassembly'
-          cache: true
-
-      - name: Configure Qt for WebAssembly
-        run: |
-          echo "EMSDK=$EMSDK" >> $GITHUB_ENV
-          echo "EMSCRIPTEN=$EMSDK/upstream/emscripten" >> $GITHUB_ENV
-          echo "PATH=$PATH:$EMSDK/upstream/emscripten" >> $GITHUB_ENV
+          cache: false
 
       - name: Build WebAssembly
         run: |
           mkdir build && cd build
-          cmake -DCMAKE_PREFIX_PATH=$Qt6_DIR \
-                -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake \
-                -DCMAKE_BUILD_TYPE=Release \
-                ..
-          cmake --build . --parallel
+          qmake CONFIG+=release PREFIX=/usr ../
+          make -j$(nproc)
 
       - name: Prepare Web Files
         run: |
